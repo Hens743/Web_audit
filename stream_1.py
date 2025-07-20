@@ -27,13 +27,15 @@ def get_soup(url):
         return None, None, str(e)
 
 # Function to run Google PageSpeed Insights API using a secret API key
+# Function to run Google PageSpeed Insights using a secret API key
 def run_pagespeed_insights(url):
     """Runs Google PageSpeed Insights and returns the JSON response."""
-    # Retrieve the API key from Streamlit secrets
+    # Retrieve the API key directly from Streamlit secrets
     try:
-        api_key = st.secrets["api_keys"]["pagespeed"]
+        # Assumes the key is named 'pagespeed_api_key' in your secrets file
+        api_key = st.secrets["pagespeed_api_key"]
     except KeyError:
-        st.error("API key for PageSpeed not found. Please add it to your Streamlit secrets.")
+        st.error("API key 'pagespeed_api_key' not found. Please add it to your Streamlit secrets.")
         return None, "Missing API Key"
 
     # Construct the API URL with the secret key
