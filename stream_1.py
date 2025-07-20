@@ -26,16 +26,27 @@ def get_soup(url):
     except requests.exceptions.RequestException as e:
         return None, None, str(e)
 
-# Function to run Google PageSpeed Insights API
+# Function to run Google PageSpeed Insights API using a secret API key
 def run_pagespeed_insights(url):
     """Runs Google PageSpeed Insights and returns the JSON response."""
-    # Note: For heavy use, you should get an API key from Google Cloud Platform
-    api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://web.dev/&key=yourAPIKey"
+    # Retrieve the API key from Streamlit secrets
+    try:
+        api_key = st.secrets["api_keys"]["pagespeed"]
+    except KeyError:
+        st.error("API key for PageSpeed not found. Please add it to your Streamlit secrets.")
+        return None, "Missing API Key"
+
+    # Construct the API URL with the secret key
+    api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={url}&strategy=mobile&category=performance&category=accessibility&category=seo&category=best-practices&key={api_key}"
+
     try:
         response = requests.get(api_url, timeout=60)
         response.raise_for_status()
         return response.json(), None
     except requests.exceptions.RequestException as e:
+        # Provide more specific error feedback if it's an API key issue
+        if response.status_code == 400:
+             return None, f"API Request Failed (Code: 400). This may be due to an invalid API key. Original error: {e}"
         return None, str(e)
 
 # Function to check for broken links (limited scope)
