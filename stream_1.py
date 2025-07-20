@@ -30,7 +30,7 @@ def get_soup(url):
 def run_pagespeed_insights(url):
     """Runs Google PageSpeed Insights and returns the JSON response."""
     # Note: For heavy use, you should get an API key from Google Cloud Platform
-    api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={url}&strategy=mobile&category=performance&category=accessibility&category=seo&category=best-practices"
+    api_url = f"https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed"
     try:
         response = requests.get(api_url, timeout=60)
         response.raise_for_status()
