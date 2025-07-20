@@ -26,29 +26,20 @@ def get_soup(url):
     except requests.exceptions.RequestException as e:
         return None, None, str(e)
 
-# Function to run Google PageSpeed Insights API using a secret API key
-# Function to run Google PageSpeed Insights using a secret API key
+# Function to run Google PageSpeed Insights API
 def run_pagespeed_insights(url):
     """Runs Google PageSpeed Insights and returns the JSON response."""
-    # Retrieve the API key directly from Streamlit secrets
-    try:
-        # Assumes the key is named 'pagespeed_api_key' in your secrets file
-        api_key = st.secrets["pagespeed_api_key"]
-    except KeyError:
-        st.error("API key 'pagespeed_api_key' not found. Please add it to your Streamlit secrets.")
-        return None, "Missing API Key"
+    # Retrieve API key from Streamlit secrets
+    api_key = st.secrets["GOOGLE_PAGESPEED_API_KEY"]
+    if not api_key:
+        return None, "Google PageSpeed API Key not found in Streamlit secrets. Please configure it."
 
-    # Construct the API URL with the secret key
     api_url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={url}&strategy=mobile&category=performance&category=accessibility&category=seo&category=best-practices&key={api_key}"
-
     try:
         response = requests.get(api_url, timeout=60)
         response.raise_for_status()
         return response.json(), None
     except requests.exceptions.RequestException as e:
-        # Provide more specific error feedback if it's an API key issue
-        if response.status_code == 400:
-             return None, f"API Request Failed (Code: 400). This may be due to an invalid API key. Original error: {e}"
         return None, str(e)
 
 # Function to check for broken links (limited scope)
@@ -76,7 +67,6 @@ def check_broken_links(soup, base_url):
     return broken_links
 
 # --- UI Display Functions ---
-
 def display_summary(psi_results, soup, headers):
     """Displays the summary tab with scores and key info."""
     st.header("Audit Summary 📝", divider="rainbow")
@@ -129,7 +119,6 @@ def display_summary(psi_results, soup, headers):
         st.info(f"**Content-Type:** {headers.get('Content-Type', 'N/A')}")
         st.info(f"**Server:** {headers.get('Server', 'N/A')}")
 
-
 def display_seo_audit(soup, psi_report):
     """Displays the SEO audit tab."""
     st.header("SEO Analysis 🔍", divider="rainbow")
@@ -174,7 +163,6 @@ def display_seo_audit(soup, psi_report):
             })
 
     st.dataframe(pd.DataFrame(audit_results), use_container_width=True)
-
 
 def display_performance_audit(psi_report):
     """Displays the Performance and Core Web Vitals tab."""
@@ -225,7 +213,6 @@ def display_performance_audit(psi_report):
     else:
         st.success("Great job! No major performance opportunities detected.")
 
-
 def display_accessibility_audit(psi_report):
     """Displays the accessibility audit tab."""
     st.header("Accessibility Audit ♿", divider="rainbow")
@@ -255,7 +242,6 @@ def display_accessibility_audit(psi_report):
                 st.markdown(issue['Description'])
     else:
         st.success("Fantastic! No major accessibility issues were detected.")
-
 
 def display_technical_audit(soup, headers, url, broken_links):
     """Displays the technical and content audit tab."""
@@ -307,7 +293,6 @@ def display_technical_audit(soup, headers, url, broken_links):
         st.success("No broken internal links found in the homepage sample. ✅")
 
 # --- Main App Logic ---
-
 def main():
     """Main function to run the Streamlit app."""
     st.title("🕵️‍♀️ Website Auditor Pro")
@@ -337,7 +322,9 @@ def main():
                 return
             if psi_error:
                 st.error(f"Failed to get Google PageSpeed Insights data: {psi_error}")
-                # We can still proceed with the HTML analysis
+                # We can still proceed with the HTML analysis if psi_results are not critical for other tabs
+                if not psi_results: # If PSI completely failed and is needed for summary, stop.
+                    return
             if not soup:
                  st.error("Could not parse the website's HTML.")
                  return
