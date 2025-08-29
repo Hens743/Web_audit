@@ -164,25 +164,13 @@ def display_seo_audit(soup, keyword):
     with st.expander("General On-Page SEO", expanded=True):
         title = soup.find('title')
         if title:
-            title_text = title.text.strip()
-            title_len = len(title_text)
-            st.success(f"**Title Tag:** {title_text}")
-            if 15 <= title_len <= 60:
-                st.caption(f"✅ Length is good ({title_len} characters).")
-            else:
-                st.caption(f"⚠️ Length is {title_len} characters. Recommended: 15-60.")
+            st.success(f"**Title Tag:** {title.text.strip()}")
         else:
             st.warning("**Title Tag:** ❌ Missing!")
 
         meta_desc = soup.find('meta', attrs={'name': 'description'})
         if meta_desc and meta_desc.get('content'):
-            desc_text = meta_desc.get('content').strip()
-            desc_len = len(desc_text)
-            st.success(f"**Meta Description:** {desc_text}")
-            if 70 <= desc_len <= 160:
-                st.caption(f"✅ Length is good ({desc_len} characters).")
-            else:
-                st.caption(f"⚠️ Length is {desc_len} characters. Recommended: 70-160.")
+            st.success(f"**Meta Description:** {meta_desc.get('content').strip()}")
         else:
             st.warning("**Meta Description:** ❌ Missing or empty!")
 
@@ -199,28 +187,15 @@ def display_seo_audit(soup, keyword):
         else:
             st.warning("**Viewport Meta Tag:** ❌ Missing!")
         
-        links = soup.find_all('a', href=True)
-        generic_links = [link.text.strip() for link in links if link.text.strip().lower() in ['click here', 'learn more', 'read more', 'more info']]
-        if not generic_links:
-            st.success("**Link Text:** ✅ No generic link text found.")
-        else:
-            st.warning(f"**Link Text:** ⚠️ Found {len(generic_links)} links with generic anchor text.")
-            with st.expander("Show generic links"):
-                st.json(generic_links)
-
-    with st.expander("Image SEO"):
         images = soup.find_all('img')
         images_without_alt = [img for img in images if not img.get('alt', '').strip()]
         if not images_without_alt:
-            st.success("**Alt Text:** ✅ All images have alt attributes.")
+            st.success("✅ All images have alt attributes.")
         else:
-            st.warning(f"**Alt Text:** ⚠️ {len(images_without_alt)} of {len(images)} images are missing alt text.")
-        
-        generic_filenames = [img.get('src') for img in images if re.search(r'IMG_\d+|image\d+|\w{8}-\w{4}-\w{4}-\w{4}-\w{12}', str(img.get('src')))]
-        if not generic_filenames:
-            st.success("**Image Filenames:** ✅ Appear descriptive.")
-        else:
-            st.warning(f"**Image Filenames:** ⚠️ {len(generic_filenames)} images may have non-descriptive filenames.")
+            st.warning(f"⚠️ {len(images_without_alt)} of {len(images)} images are missing alt text.")
+            with st.expander("Show images missing alt text"):
+                for img in images_without_alt:
+                    st.code(str(img.get('src', 'No src found')))
     
     with st.expander("Social & Structured Data"):
         og_title = soup.find('meta', property='og:title')
@@ -234,20 +209,14 @@ def display_technical_audit(soup, url):
     st.header("Technical SEO Audit ⚙️", divider="rainbow")
     
     with st.expander("Crawling & Indexing"):
-        robots_meta = soup.find('meta', attrs={'name': 'robots'})
-        if robots_meta:
-            st.warning(f"**Robots Meta Tag Found:** `{robots_meta.get('content')}`. Ensure this is intended.")
-        else:
-            st.success("**Robots Meta Tag:** ✅ Not found (page is likely indexable).")
-            
         robots_url = urljoin(url, "/robots.txt")
         try:
             robots_res = requests.get(robots_url, timeout=5)
             if robots_res.status_code == 200:
-                st.success("**Robots.txt:** ✅ Found.")
+                st.success("✅ Robots.txt found.")
                 st.code(robots_res.text)
             else:
-                st.warning("**Robots.txt:** ⚠️ Not Found.")
+                st.warning("⚠️ Robots.txt not found.")
         except requests.exceptions.RequestException:
             st.error("Could not check for robots.txt.")
             
@@ -257,14 +226,6 @@ def display_technical_audit(soup, url):
         
         hreflang_tags = soup.find_all('link', rel='alternate', hreflang=True)
         st.success(f"**Hreflang Tags:** {'✅ Present' if hreflang_tags else 'ℹ️ Not found (only for multi-language sites)'}")
-
-    with st.expander("Site Branding"):
-        favicon = soup.find('link', rel=re.compile(r'icon'))
-        if favicon:
-            st.success("**Favicon:** ✅ Declared in HTML.")
-            st.caption(f"Favicon URL: `{favicon.get('href')}`")
-        else:
-            st.warning("**Favicon:** ⚠️ Not declared in HTML.")
 
 def display_crawl_results(crawl_data):
     st.header("Site Crawl Overview 🗺️", divider="rainbow")
@@ -340,7 +301,6 @@ def main():
         st.session_state.psi_results = psi_results
         st.session_state.crawl_data = crawl_data
         st.session_state.audited_keyword = keyword_input
-        st.rerun()
 
     if st.session_state.get('audit_ran'):
         main_page_data = st.session_state.main_page_data
@@ -348,6 +308,7 @@ def main():
         crawl_data = st.session_state.crawl_data
         psi_report = psi_results.get('lighthouseResult', {}) if psi_results else {}
         
+        # FIXED: Safely get the audited_keyword, provide a default if it doesn't exist
         audited_keyword = st.session_state.get('audited_keyword', '')
         
         summary_tab, perf_tab, seo_tab, tech_tab, crawl_tab = st.tabs(
