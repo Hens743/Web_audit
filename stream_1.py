@@ -144,7 +144,6 @@ def display_seo_audit(soup, keyword):
     
     if keyword:
         with st.expander("Keyword Analysis", expanded=True):
-            # ... (keyword logic remains the same)
             page_text = soup.get_text().lower()
             keyword_count = page_text.count(keyword.lower())
             word_count = len(page_text.split())
@@ -163,7 +162,6 @@ def display_seo_audit(soup, keyword):
         st.info("Enter a target keyword in the sidebar to run a keyword-specific analysis.")
 
     with st.expander("General On-Page SEO", expanded=True):
-        # UPDATED: More specific checks
         title = soup.find('title')
         if title:
             st.success(f"**Title Tag:** {title.text.strip()}")
@@ -208,14 +206,43 @@ def display_seo_audit(soup, keyword):
         st.info(f"**JSON-LD Structured Data:** {'✅ Present' if json_ld else '⚠️ Missing'}")
 
 def display_technical_audit(soup, url):
-    # This function remains the same
     st.header("Technical SEO Audit ⚙️", divider="rainbow")
-    # ...
     
+    with st.expander("Crawling & Indexing"):
+        robots_url = urljoin(url, "/robots.txt")
+        try:
+            robots_res = requests.get(robots_url, timeout=5)
+            if robots_res.status_code == 200:
+                st.success("✅ Robots.txt found.")
+                st.code(robots_res.text)
+            else:
+                st.warning("⚠️ Robots.txt not found.")
+        except requests.exceptions.RequestException:
+            st.error("Could not check for robots.txt.")
+            
+        canonical_tag = soup.find('link', rel='canonical')
+        st.success(f"**Canonical Tag:** {'✅ Present' if canonical_tag else '⚠️ Missing'}")
+        if canonical_tag: st.caption(f"Canonical URL: `{canonical_tag.get('href')}`")
+        
+        hreflang_tags = soup.find_all('link', rel='alternate', hreflang=True)
+        st.success(f"**Hreflang Tags:** {'✅ Present' if hreflang_tags else 'ℹ️ Not found (only for multi-language sites)'}")
+
 def display_crawl_results(crawl_data):
-    # This function remains the same
     st.header("Site Crawl Overview 🗺️", divider="rainbow")
-    # ...
+    if not crawl_data or len(crawl_data) <= 1: 
+        st.info("Crawl was not initiated or no additional internal links were found on the homepage."); return
+    
+    st.markdown(f"Analyzed **{len(crawl_data)}** pages in total.")
+    crawl_df_data = [{
+        'URL': res.get('url'),
+        'Status': res.get('status_code'),
+        'Title Present': '✅' if res.get('title') else '❌',
+        'Meta Desc. Present': '✅' if res.get('meta_description') else '❌',
+        'H1 Count': len(res.get('h1_tags', [])),
+        'Error': res.get('error', 'None')
+    } for res in crawl_data]
+    
+    st.dataframe(pd.DataFrame(crawl_df_data), width='stretch', hide_index=True)
 
 # --- Main App Logic ---
 def main():
@@ -281,6 +308,9 @@ def main():
         crawl_data = st.session_state.crawl_data
         psi_report = psi_results.get('lighthouseResult', {}) if psi_results else {}
         
+        # FIXED: Safely get the audited_keyword, provide a default if it doesn't exist
+        audited_keyword = st.session_state.get('audited_keyword', '')
+        
         summary_tab, perf_tab, seo_tab, tech_tab, crawl_tab = st.tabs(
             ["Summary", "Performance", "SEO", "Technical", "Site Crawl"]
         )
@@ -290,7 +320,7 @@ def main():
         with perf_tab:
             display_performance_audit(psi_report)
         with seo_tab:
-            display_seo_audit(main_page_data['soup'], st.session_state.audited_keyword)
+            display_seo_audit(main_page_data['soup'], audited_keyword)
         with tech_tab:
             display_technical_audit(main_page_data['soup'], main_page_data['url'])
         with crawl_tab:
